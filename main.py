@@ -5,6 +5,7 @@ import models
 from database import engine, get_db
 from pydantic import BaseModel
 import google.generativeai as genai
+from fastapi.middleware.cors import CORSMiddleware
 
 import os
 from dotenv import load_dotenv
@@ -22,6 +23,20 @@ api_key = os.getenv("GEMINI_API_KEY")
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+origins = [
+    "http://localhost:8080",      # For when you test locally
+    "https://lovable.dev",        # Allow Lovable's editor
+    "*"                            # The 'Wildcard' - allows ANY site to talk to you. 
+                                   # Use "*" for now to make testing easy!
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],           # Allows GET, POST, DELETE, etc.
+    allow_headers=["*"],           # Allows all security headers
+)
 
 # Pydantic schema for the API request
 class StudentCreate(BaseModel):
