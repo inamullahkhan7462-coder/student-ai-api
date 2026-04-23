@@ -114,9 +114,15 @@ def get_student_stats(db: Session = Depends(get_db)):
 
 # Configure your AI (Replace 'YOUR_API_KEY' with your real key)
 # Configure the existing library
-genai.configure(api_key=api_key)
-# Use the 'models/' prefix to help the old library find the new model
-model = genai.GenerativeModel('models/gemini-2.0-flash')
+def get_model():
+    # This force-checks Render's Environment Variables every time
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        # Fallback for local testing
+        key = api_key 
+    
+    genai.configure(api_key=key)
+    return genai.GenerativeModel('models/gemini-2.0-flash')
 @app.get("/ai-advice/{student_id}")
 def get_ai_advice(student_id: int, db: Session = Depends(get_db)):
     student = db.query(models.StudentDB).filter(models.StudentDB.id == student_id).first()
@@ -125,8 +131,10 @@ def get_ai_advice(student_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Student not found")
 
     try:
+        current_model = get_model() 
+        
         prompt = f"A student named {student.name} has a GPA of {student.gpa}. Give 2 lines of encouraging advice."
-        response = model.generate_content(prompt)
+        response = current_model.generate_content(prompt)
         
         return {
             "student_name": student.name,
@@ -139,14 +147,3 @@ def get_ai_advice(student_id: int, db: Session = Depends(get_db)):
         print(f"AI ERROR: {e}")
         return {"error": "AI Connection Issue", "details": str(e)}
     
-
-@app.get("/list-models")
-def list_available_models():
-    try:
-        available_models = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                available_models.append(m.name)
-        return {"supported_models": available_models}
-    except Exception as e:
-        return {"error": str(e)}
